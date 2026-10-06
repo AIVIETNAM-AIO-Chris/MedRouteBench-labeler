@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir \
 COPY . .
 
 # Download NLTK datasets and bllipparser GENIA model
-RUN python -m nltk.downloader universal_tagset punkt wordnet
+RUN python -m nltk.downloader universal_tagset punkt wordnet omw-1.4
 RUN python -c "from bllipparser import RerankingParser; RerankingParser.fetch_and_load('GENIA+PubMed')"
 
 # Warm-up / cache CoreNLP on sample reports
