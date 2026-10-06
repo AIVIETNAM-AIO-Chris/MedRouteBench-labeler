@@ -1,0 +1,21 @@
+# ==============================================================================
+# MedRouteBench CheXpert Labeling Pipeline - Requirements
+# ==============================================================================
+
+# --- Pipeline Orchestration Dependencies (Host Environment) ---
+# Compatible with Python >= 3.7 (including Python 3.8 - 3.12)
+pandas>=1.3.0
+tqdm>=4.60.0
+numpy>=1.19.0
+
+# --- Native CheXpert Labeler Dependencies (Only required for --no_docker) ---
+# NOTE: Stanford CheXpert Labeler requires Python 3.7 and Java Runtime (OpenJDK 8+)
+# IMPORTANT: networkx and bioc MUST be pinned to exact versions for compatibility:
+networkx==2.3
+bioc==1.0
+future>=0.18.2
+pystanforddependencies>=0.2.0
+nltk>=3.5
+pathlib2>=2.3.0
+ply>=3.11
+bllipparser==2016.9.11
