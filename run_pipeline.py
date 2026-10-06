@@ -83,7 +83,7 @@ def run_local_labeler(
     print(" ".join(cmd))
     print("------------------------------------------------------------")
 
-    res = subprocess.run(cmd, env=env)
+    res = subprocess.run(cmd, env=env, cwd=labeler_dir)
     if res.returncode != 0:
         print(f"\n[!] Local CheXpert run failed with exit code {res.returncode}")
         print("[!] Hay dam bao ban da cai dat moi truong Python 3.7 + Java JRE + NegBio day du.")
