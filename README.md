@@ -116,15 +116,24 @@ Nên chạy thử trên 20 mẫu để kiểm tra kết quả trước khi chạ
 
 ### 2. Chạy chính thức toàn bộ tập dữ liệu (Full Dataset - 64,586 mẫu)
 
-- **Nếu dùng Docker:**
+#### ⚡ Tăng tốc đa tiến trình (Khuyên dùng trên Server đa nhân):
+Sử dụng cờ `--workers <N>` (ví dụ `--workers 16` hoặc `--workers 0` để tự động tận dụng toàn bộ số nhân CPU):
+
+- **Trên máy chủ (Local Conda) với 16 luồng song song:**
   ```bash
-  python run_pipeline.py --step all
+  python run_pipeline.py --step all --no_docker --workers 16
   ```
 
-- **Nếu không dùng Docker (Local Conda):**
+- **Trên máy chủ dùng Docker với 16 container song song:**
   ```bash
-  python run_pipeline.py --step all --no_docker
+  python run_pipeline.py --step all --workers 16
   ```
+
+> 💡 **Tốc độ ước tính:** Với 16 workers, thời gian gán nhãn toàn bộ tập dữ liệu rút ngắn từ **~8–10 tiếng xuống còn khoảng 25–40 phút**!
+
+#### Chạy đơn luồng truyền thống:
+- Nếu dùng Docker: `python run_pipeline.py --step all`
+- Nếu dùng Local Conda: `python run_pipeline.py --step all --no_docker`
 
 ### 3. Tùy chọn chạy từng bước riêng biệt:
 - Chỉ chuẩn bị dữ liệu: `python run_pipeline.py --step prepare`
