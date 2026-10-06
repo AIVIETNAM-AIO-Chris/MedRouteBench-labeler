@@ -146,22 +146,35 @@ def run_parallel_labeling(
         current_pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = f"{negbio_dir}{os.pathsep}{current_pythonpath}" if current_pythonpath else str(negbio_dir)
 
+        print(f"[*] Launched {num_active_chunks} workers in parallel. Parsing reports in background...")
+        print("[*] (Workers take ~1-2 mins to initialize JVM & parse syntax trees. Heartbeat updates will appear below:)\n")
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_active_chunks) as executor:
             futures = {
                 executor.submit(run_single_local_worker, chunk_in, chunk_out, labeler_dir, worker_id, env): (worker_id, count)
                 for worker_id, chunk_in, chunk_out, count in chunk_tasks
             }
             completed = 0
-            for future in concurrent.futures.as_completed(futures):
-                worker_id, count = futures[future]
-                ret, stderr = future.result()
-                if ret != 0:
-                    err_msg = stderr.strip() if stderr else "No stderr output."
-                    raise RuntimeError(f"Local worker {worker_id} failed with exit code {ret}!\n\n--- WORKER ERROR LOG ---\n{err_msg}\n-------------------------\n[!] Gợi ý: Nếu đang chạy trên Windows, hãy dùng Docker (bỏ cờ --no_docker). Cờ --no_docker chỉ dùng trên Linux Server có cài Python 3.7.")
-                completed += 1
-                elapsed = time.time() - start_time
-                print(f" -> [Progress {completed}/{num_active_chunks}] Worker {worker_id+1} finished ({count} reports) | Elapsed: {elapsed:.1f}s")
+            pending = set(futures.keys())
+            while pending:
+                done, pending = concurrent.futures.wait(pending, timeout=10, return_when=concurrent.futures.FIRST_COMPLETED)
+                if not done:
+                    elapsed = time.time() - start_time
+                    print(f"[*] Processing in progress... [{completed}/{num_active_chunks} chunks completed] | Elapsed: {elapsed:.0f}s")
+                else:
+                    for future in done:
+                        worker_id, count = futures[future]
+                        ret, stderr = future.result()
+                        if ret != 0:
+                            err_msg = stderr.strip() if stderr else "No stderr output."
+                            raise RuntimeError(f"Local worker {worker_id} failed with exit code {ret}!\n\n--- WORKER ERROR LOG ---\n{err_msg}\n-------------------------\n[!] Gợi ý: Nếu đang chạy trên Windows, hãy dùng Docker (bỏ cờ --no_docker). Cờ --no_docker chỉ dùng trên Linux Server có cài Python 3.7.")
+                        completed += 1
+                        elapsed = time.time() - start_time
+                        print(f" -> [Progress {completed}/{num_active_chunks}] Worker {worker_id+1} finished ({count} reports) | Elapsed: {elapsed:.1f}s")
     else:
+        print(f"[*] Launched {num_active_chunks} Docker workers in parallel. Parsing reports in background...")
+        print("[*] (Workers take ~1-2 mins to initialize JVM & parse syntax trees. Heartbeat updates will appear below:)\n")
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_active_chunks) as executor:
             futures = {
                 executor.submit(
@@ -174,15 +187,22 @@ def run_parallel_labeling(
                 for worker_id, chunk_in, chunk_out, count in chunk_tasks
             }
             completed = 0
-            for future in concurrent.futures.as_completed(futures):
-                worker_id, count = futures[future]
-                ret, stderr = future.result()
-                if ret != 0:
-                    err_msg = stderr.strip() if stderr else "No stderr output."
-                    raise RuntimeError(f"Docker worker {worker_id} failed with exit code {ret}!\n\n--- DOCKER ERROR LOG ---\n{err_msg}\n-------------------------\n[!] Hãy đảm bảo Docker Desktop đang chạy và image 'chexpert-labeler:latest' đã được build.")
-                completed += 1
-                elapsed = time.time() - start_time
-                print(f" -> [Progress {completed}/{num_active_chunks}] Docker Worker {worker_id+1} finished ({count} reports) | Elapsed: {elapsed:.1f}s")
+            pending = set(futures.keys())
+            while pending:
+                done, pending = concurrent.futures.wait(pending, timeout=10, return_when=concurrent.futures.FIRST_COMPLETED)
+                if not done:
+                    elapsed = time.time() - start_time
+                    print(f"[*] Processing in progress... [{completed}/{num_active_chunks} Docker chunks completed] | Elapsed: {elapsed:.0f}s")
+                else:
+                    for future in done:
+                        worker_id, count = futures[future]
+                        ret, stderr = future.result()
+                        if ret != 0:
+                            err_msg = stderr.strip() if stderr else "No stderr output."
+                            raise RuntimeError(f"Docker worker {worker_id} failed with exit code {ret}!\n\n--- DOCKER ERROR LOG ---\n{err_msg}\n-------------------------\n[!] Hãy đảm bảo Docker Desktop đang chạy và image 'chexpert-labeler:latest' đã được build.")
+                        completed += 1
+                        elapsed = time.time() - start_time
+                        print(f" -> [Progress {completed}/{num_active_chunks}] Docker Worker {worker_id+1} finished ({count} reports) | Elapsed: {elapsed:.1f}s")
 
     total_elapsed = time.time() - start_time
     rate = total_reports / total_elapsed if total_elapsed > 0 else 0
