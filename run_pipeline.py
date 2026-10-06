@@ -64,7 +64,7 @@ def merge_labeled_chunks(chunk_outputs: list, final_output: Path, expected_rows:
     merged_df.to_csv(final_output, index=False)
 
 
-def run_single_local_worker(chunk_in: Path, chunk_out: Path, labeler_dir: Path, worker_id: int, env: dict) -> int:
+def run_single_local_worker(chunk_in: Path, chunk_out: Path, labeler_dir: Path, worker_id: int, env: dict):
     """Run a single local worker for one chunk."""
     cmd = [
         sys.executable,
@@ -73,13 +73,10 @@ def run_single_local_worker(chunk_in: Path, chunk_out: Path, labeler_dir: Path, 
         "--output_path", str(chunk_out.resolve()),
     ]
     res = subprocess.run(cmd, env=env, cwd=labeler_dir, capture_output=True, text=True)
-    if res.returncode != 0:
-        print(f"\n[Worker {worker_id} ERROR]: Exit code {res.returncode}")
-        print(f"Stderr: {res.stderr[:500]}")
-    return res.returncode
+    return res.returncode, res.stderr
 
 
-def run_single_docker_worker(chunk_in_rel: str, chunk_out_rel: str, workspace_dir: Path, worker_id: int) -> int:
+def run_single_docker_worker(chunk_in_rel: str, chunk_out_rel: str, workspace_dir: Path, worker_id: int):
     """Run a single Docker worker for one chunk."""
     input_container = f"/data/{Path(chunk_in_rel).as_posix()}"
     output_container = f"/data/{Path(chunk_out_rel).as_posix()}"
@@ -94,10 +91,7 @@ def run_single_docker_worker(chunk_in_rel: str, chunk_out_rel: str, workspace_di
         "--output_path", output_container,
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)
-    if res.returncode != 0:
-        print(f"\n[Docker Worker {worker_id} ERROR]: Exit code {res.returncode}")
-        print(f"Stderr: {res.stderr[:500]}")
-    return res.returncode
+    return res.returncode, res.stderr
 
 
 def run_parallel_labeling(
@@ -160,9 +154,10 @@ def run_parallel_labeling(
             completed = 0
             for future in concurrent.futures.as_completed(futures):
                 worker_id, count = futures[future]
-                ret = future.result()
+                ret, stderr = future.result()
                 if ret != 0:
-                    raise RuntimeError(f"Local worker {worker_id} failed with exit code {ret}!")
+                    err_msg = stderr.strip() if stderr else "No stderr output."
+                    raise RuntimeError(f"Local worker {worker_id} failed with exit code {ret}!\n\n--- WORKER ERROR LOG ---\n{err_msg}\n-------------------------\n[!] Gợi ý: Nếu đang chạy trên Windows, hãy dùng Docker (bỏ cờ --no_docker). Cờ --no_docker chỉ dùng trên Linux Server có cài Python 3.7.")
                 completed += 1
                 elapsed = time.time() - start_time
                 print(f" -> [Progress {completed}/{num_active_chunks}] Worker {worker_id+1} finished ({count} reports) | Elapsed: {elapsed:.1f}s")
@@ -181,9 +176,10 @@ def run_parallel_labeling(
             completed = 0
             for future in concurrent.futures.as_completed(futures):
                 worker_id, count = futures[future]
-                ret = future.result()
+                ret, stderr = future.result()
                 if ret != 0:
-                    raise RuntimeError(f"Docker worker {worker_id} failed with exit code {ret}!")
+                    err_msg = stderr.strip() if stderr else "No stderr output."
+                    raise RuntimeError(f"Docker worker {worker_id} failed with exit code {ret}!\n\n--- DOCKER ERROR LOG ---\n{err_msg}\n-------------------------\n[!] Hãy đảm bảo Docker Desktop đang chạy và image 'chexpert-labeler:latest' đã được build.")
                 completed += 1
                 elapsed = time.time() - start_time
                 print(f" -> [Progress {completed}/{num_active_chunks}] Docker Worker {worker_id+1} finished ({count} reports) | Elapsed: {elapsed:.1f}s")
