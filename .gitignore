@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Large dataset files (GitHub blocks files > 100MB)
+mimic_cxr_aug_train.csv
+*.pdf
+*.tar
+*.sif
+*.pdf
+
+# Intermediate and output directories
+data_work/
+test_work/
+*.log
